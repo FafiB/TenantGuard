@@ -15,11 +15,11 @@ const tenantSchema = new mongoose.Schema({
         enum: ['free', 'pro', 'enterprise'],
         default: 'free'
     },
-    // ❌ VULNERABILITY: Payment info stored in same database
+    // VULNERABILITY: Payment info stored in same database
     paymentInfo: {
-        cardNumber: String,  // ❌ INSECURE: Plain text storage
+        cardNumber: String,  // Plain text storage
         expiryDate: String,
-        cvv: String          // ❌ CRITICAL: Never store CVV!
+        cvv: String          // Never store CVV!
     },
     settings: {
         maxStorage: { type: Number, default: 1024 }, // MB
@@ -27,5 +27,5 @@ const tenantSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// ❌ VULNERABILITY: No indexing on frequently queried fields
+//  VULNERABILITY: No indexing on frequently queried fields
 module.exports = mongoose.model('Tenant', tenantSchema);

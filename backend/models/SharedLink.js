@@ -9,9 +9,9 @@ const sharedLinkSchema = new mongoose.Schema({
         type: String,
         unique: true
     },
-    // ❌ VULNERABILITY: No expiry date by default
+    // VULNERABILITY: No expiry date by default
     expiresAt: Date,
-    // ❌ VULNERABILITY: Access level controlled by frontend only
+    // VULNERABILITY: Access level controlled by frontend only
     accessLevel: {
         type: String,
         enum: ['view', 'edit', 'download'],
