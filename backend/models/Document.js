@@ -19,7 +19,7 @@ const documentSchema = new mongoose.Schema({
     fileSize: Number,
 // VULNERABILITY: File path exposed in database
     filePath: String,
-    //VULNERABILITY: Access control as simple string
+s
     visibility: {
         type: String,
         enum: ['private', 'shared', 'public'],

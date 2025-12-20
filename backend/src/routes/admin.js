@@ -37,8 +37,6 @@ router.get('/documents', auth, adminAuth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-// Update user role
 router.put('/users/:userId/role', auth, adminAuth, async (req, res) => {
     try {
         const { role } = req.body;

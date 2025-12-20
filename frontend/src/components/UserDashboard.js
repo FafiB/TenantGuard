@@ -643,7 +643,7 @@ const UserDashboard = () => {
                     value={paymentData.cardholderName}
                     onChange={(e) => setPaymentData({...paymentData, cardholderName: e.target.value})}
                     className="form-input"
-                    placeholder="Selemon Hailu"
+                    placeholder="Fasika Belayneh"
                     required
                   />
                 </div>

@@ -2,10 +2,8 @@ const express = require('express');
 const auth = require('../middleware/auth');
 const router = express.Router();
 
-// Get notifications (placeholder)
 router.get('/', auth, async (req, res) => {
     try {
-        // VULNERABILITY: Hardcoded notifications for demo
         const notifications = [
             {
                 id: 1,

@@ -1,284 +1,162 @@
 # TenantGuard - Enterprise Document Management Platform
 
-A modern, secure document management platform built with React and Node.js, featuring enterprise-grade multi-tenant architecture, advanced security controls, and comprehensive document collaboration capabilities.
+**Author:** Fasika Belayneh  
+**Version:** 1.0.0  
+**Purpose:** Security Research & Penetration Testing
 
-## 🚀 Features
+## Overview
 
-### Enterprise Functionality
-- **Multi-tenant Architecture**: Secure isolated workspaces for different organizations
-- **Advanced Authentication**: JWT-based authentication with role-based access control
-- **Document Management**: Upload, organize, view, and manage documents with version control
-- **Secure Sharing**: Generate encrypted sharing links with granular permissions
-- **User Management**: Comprehensive user profiles and administrative controls
-- **Analytics Dashboard**: Real-time insights and document usage analytics
-- **Compliance Ready**: Audit trails and security controls for regulatory compliance
+TenantGuard is an intentionally vulnerable enterprise document management platform designed for security research and penetration testing. It features a multi-tenant architecture with role-based access control, file management capabilities, and payment processing - all implemented with deliberate security vulnerabilities for educational purposes.
 
-### Technical Excellence
-- **Frontend**: React 18 with modern hooks and responsive design
-- **Backend**: Node.js with Express.js REST API architecture
-- **Database**: MongoDB with optimized schemas and indexing
-- **Security**: Enterprise-grade authentication and authorization
-- **File Handling**: Secure file upload with validation and scanning
-- **Scalability**: Designed for high-volume enterprise deployments
+## Architecture
 
-## 📋 Prerequisites
+- **Frontend:** React 18 with modern UI components
+- **Backend:** Node.js with Express.js REST API
+- **Database:** MongoDB with Mongoose ODM
+- **Authentication:** JWT-based with role management
+- **File Storage:** Local filesystem with multer
+- **Payment:** Custom insecure payment gateway
+
+## Setup Instructions
+
+### Prerequisites
 
 - Node.js (v16 or higher)
 - MongoDB (v5.0 or higher)
-- npm or yarn package manager
+- Python 3.6+ (for exploit scripts)
+- Git
 
-## 🛠️ Installation & Setup
+### Installation
 
-### 1. Clone the Repository
+1. **Clone Repository**
 ```bash
 git clone <repository-url>
 cd TenantGuard
 ```
 
-### 2. Backend Setup
+2. **Backend Setup**
 ```bash
 cd backend
 npm install
-```
-
-### 3. Frontend Setup
-```bash
-cd ../frontend
-npm install
-```
-
-### 4. Environment Configuration
-The backend `.env` file is already configured with development settings:
-```env
-PORT=5000
-MONGODB_URI=mongodb://localhost:27017/tenant_shield
-JWT_SECRET=supersecretkey
-FRONTEND_URL=http://localhost:3000
-NODE_ENV=development
-```
-
-### 5. Database Initialization
-```bash
-cd backend
 npm run init-db
-```
-
-This will create the initial database structure and sample data including:
-- Enterprise tenant organization
-- Demo user: `demo@tenantguard.com` / `demo123`
-
-### 6. Start the Application
-
-**Backend (Terminal 1):**
-```bash
-cd backend
 npm start
-# or for development with auto-reload:
-npm run dev
 ```
 
-**Frontend (Terminal 2):**
+3. **Frontend Setup**
 ```bash
 cd frontend
+npm install
 npm start
 ```
 
-The application will be available at:
-- Frontend: http://localhost:3000
-- Backend API: http://localhost:5000
-
-## 🎯 Usage Guide
-
-### Getting Started
-1. Navigate to http://localhost:3000
-2. Login with demo credentials:
-   - **Demo User**: `demo@tenantguard.com` / `demo123`
-
-### Key Features
-
-#### Dashboard
-- View document statistics and storage usage
-- Quick access to common actions
-- Recent activity feed
-
-#### Document Management
-- **Upload**: Drag & drop or click to upload files
-- **View**: Click on documents to view/download
-- **Search**: Find documents by title or description
-- **Delete**: Remove documents (with confirmation)
-
-#### User Profile
-- Update personal information
-- Change password
-- Upload profile avatar
-
-#### Admin Panel (Admin users only)
-- **User Management**: View, edit, and delete users
-- **Document Overview**: System-wide document management
-- **System Statistics**: Usage analytics and health monitoring
-
-### API Endpoints
-
-#### Authentication
-- `POST /api/auth/login` - User login
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/forgot-password` - Password reset
-
-#### Documents
-- `GET /api/documents` - List user documents
-- `POST /api/documents/upload` - Upload new document
-- `GET /api/documents/:id` - Get specific document
-- `PUT /api/documents/:id` - Update document
-- `DELETE /api/documents/:id` - Delete document
-- `POST /api/documents/:id/share` - Create sharing link
-
-#### Profile
-- `GET /api/profile` - Get user profile
-- `PUT /api/profile` - Update profile
-- `POST /api/profile/change-password` - Change password
-- `POST /api/profile/avatar` - Upload avatar
-
-#### Admin (Admin only)
-- `GET /api/admin/users` - List all users
-- `GET /api/admin/documents` - List all documents
-- `GET /api/admin/stats` - System statistics
-- `PUT /api/admin/users/:id/role` - Update user role
-- `DELETE /api/admin/users/:id` - Delete user
-
-#### Dashboard
-- `GET /api/dashboard/stats` - User dashboard statistics
-- `GET /api/dashboard/activity` - Recent activity
-
-## 🏗️ Architecture
-
-### Frontend Structure
-```
-frontend/src/
-├── components/          # Reusable React components
-│   ├── AdminPanel.jsx   # Admin interface
-│   ├── Dashboard.jsx    # Dashboard component
-│   ├── DocumentList.jsx # Document listing
-│   ├── DocumentUpload.jsx # File upload
-│   └── Profile.jsx      # User profile
-├── context/             # React context providers
-│   └── AuthContext.jsx  # Authentication context
-├── pages/               # Main page components
-│   ├── Home.jsx         # Main application page
-│   ├── Login.jsx        # Login page
-│   └── Register.jsx     # Registration page
-├── App.jsx              # Main app component
-├── App.css              # Comprehensive styling
-└── index.js             # Application entry point
+4. **Exploit Scripts Setup**
+```bash
+cd exploit-scripts
+pip install requests
 ```
 
-### Backend Structure
+### Default Credentials
+
+- **Admin:** demo@tenantguard.com / demo123
+- **User:** test@tenantguard.com / test123
+
+### Application URLs
+
+- **Frontend:** http://localhost:3000
+- **Backend API:** http://localhost:5000
+- **Health Check:** http://localhost:5000/health
+
+## Vulnerable Components
+
+### 1. Authentication System
+- Plain text password storage
+- Weak password policies
+- Information disclosure in password reset
+
+### 2. Authorization Framework
+- Broken Object Level Authorization (BOLA)
+- Cross-tenant data access
+- Missing ownership verification
+
+### 3. File Upload System
+- No file type validation
+- Executable file upload
+- Directory traversal vulnerabilities
+
+### 4. Payment Gateway
+- Unencrypted sensitive data storage
+- No input validation
+- Cross-user payment access
+
+### 5. Multi-Tenant Architecture
+- Tenant isolation bypass
+- Cross-tenant admin access
+- Weak tenant validation
+
+### 6. Information Disclosure
+- System information exposure
+- Error message leakage
+- Path disclosure vulnerabilities
+
+## Security Testing
+
+### Running Individual Exploits
+```bash
+cd exploit-scripts
+python3 plaintext_passwords.py
+python3 bola_exploit.py
+python3 file_upload_exploit.py
 ```
-backend/src/
-├── config/              # Configuration files
-│   ├── database.js      # MongoDB connection
-│   └── jwt.js           # JWT configuration
-├── middleware/          # Express middleware
-│   ├── auth.js          # Authentication middleware
-│   └── tenant.js        # Tenant isolation
-├── models/              # Mongoose schemas
-│   ├── User.js          # User model
-│   ├── Document.js      # Document model
-│   ├── Tenant.js        # Tenant model
-│   └── SharedLink.js    # Sharing model
-├── routes/              # API route handlers
-│   ├── auth.js          # Authentication routes
-│   ├── documents.js     # Document management
-│   ├── profile.js       # User profile
-│   ├── admin.js         # Admin functions
-│   └── analytics.js     # Analytics endpoints
-├── scripts/             # Utility scripts
-│   └── initDatabase.js  # Database initialization
-├── app.js               # Express app configuration
-└── server.js            # Server startup
+
+### Running All Exploits
+```bash
+cd exploit-scripts
+python3 run_all_exploits.py
 ```
 
-## 🔧 Development
+## Project Structure
 
-### Adding New Features
-1. **Frontend**: Create components in `frontend/src/components/`
-2. **Backend**: Add routes in `backend/src/routes/`
-3. **Database**: Define models in `backend/src/models/`
+```
+TenantGuard/
+├── backend/                 # Node.js backend
+│   ├── src/
+│   │   ├── models/         # Database models
+│   │   ├── routes/         # API endpoints
+│   │   ├── middleware/     # Authentication & validation
+│   │   └── scripts/        # Database initialization
+│   └── package.json
+├── frontend/               # React frontend
+│   ├── src/
+│   │   ├── components/     # UI components
+│   │   ├── pages/          # Application pages
+│   │   └── services/       # API integration
+│   └── package.json
+├── exploit-scripts/        # Security testing scripts
+│   ├── *.py               # Individual exploit scripts
+│   └── README.md          # Exploit documentation
+├── vulnerability-docs/     # Detailed vulnerability documentation
+└── README.md              # This file
+```
 
-### Environment Variables
-- `PORT`: Server port (default: 5000)
-- `MONGODB_URI`: MongoDB connection string
-- `JWT_SECRET`: JWT signing secret
-- `FRONTEND_URL`: Frontend URL for CORS
-- `NODE_ENV`: Environment (development/production)
+## Legal Notice
 
-### File Upload Configuration
-- **Location**: `backend/uploads/` and `backend/public/avatars/`
-- **Size Limit**: 100MB for documents, 5MB for avatars
-- **Supported Types**: PDF, DOC, DOCX, TXT, JPG, PNG, GIF
+This application contains intentional security vulnerabilities and is designed exclusively for:
 
-## 🔒 Security & Compliance
+- Security research and education
+- Authorized penetration testing
+- Vulnerability assessment training
+- Security awareness demonstrations
 
-TenantGuard is built with enterprise security in mind:
+**WARNING:** Do not deploy this application in production environments. Only use on systems you own or have explicit permission to test.
 
-- **Data Isolation**: Complete tenant separation with secure multi-tenancy
-- **Access Controls**: Role-based permissions and document-level security
-- **Audit Trails**: Comprehensive logging for compliance requirements
-- **Encryption**: Data encryption in transit and at rest
-- **Authentication**: Secure JWT-based authentication with session management
-- **File Security**: Virus scanning and content validation for uploads
+## Contributing
 
-## 🚨 Production Deployment
+This project is for educational purposes. If you discover additional vulnerabilities or have improvements to the exploit scripts, please document them following the established format.
 
-For production environments, ensure:
+## License
 
-- Use strong, unique JWT secrets
-- Enable HTTPS/TLS encryption
-- Implement proper backup strategies
-- Configure monitoring and alerting
-- Set up proper firewall rules
-- Use environment-specific configurations
-- Enable database authentication and encryption
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
-## 📄 License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## 🆘 Troubleshooting
-
-### Common Issues
-
-**MongoDB Connection Error**
-- Ensure MongoDB is running on your system
-- Check the connection string in `.env`
-- Verify MongoDB service is started
-
-**Port Already in Use**
-- Change the PORT in `.env` file
-- Kill existing processes using the port
-
-**File Upload Issues**
-- Check file permissions in upload directories
-- Verify file size limits
-- Ensure supported file types
-
-**Authentication Problems**
-- Clear browser localStorage
-- Check JWT token expiration
-- Verify user credentials
-
-### Getting Help
-- Check the console for error messages
-- Review the API responses in browser dev tools
-- Ensure all dependencies are installed correctly
+MIT License - See LICENSE file for details.
 
 ---
 
-**TenantGuard** - Secure, scalable, multi-tenant document management made simple.
+**Disclaimer:** This software is provided for educational purposes only. The author is not responsible for any misuse or damage caused by this software.

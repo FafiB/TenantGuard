@@ -26,6 +26,4 @@ const tenantSchema = new mongoose.Schema({
         maxUsers: { type: Number, default: 10 }
     }
 }, { timestamps: true });
-
-//  VULNERABILITY: No indexing on frequently queried fields
 module.exports = mongoose.model('Tenant', tenantSchema);

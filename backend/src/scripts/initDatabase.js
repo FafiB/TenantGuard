@@ -32,7 +32,7 @@ const initDatabase = async () => {
             tenantId: demoTenant._id,
             role: 'admin',
             profile: {
-                fullName: 'Selemon Hailu',
+                fullName: 'Fasika Belayneh',
                 bio: 'Demo account for testing'
             }
         });
