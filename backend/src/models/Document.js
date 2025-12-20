@@ -3,43 +3,68 @@ const mongoose = require('mongoose');
 const documentSchema = new mongoose.Schema({
     tenantId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Tenant'
+        ref: 'Tenant',
+        required: true
     },
     userId: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
+        ref: 'User',
+        required: true
     },
     title: {
         type: String,
         required: true
     },
-    description: String,
-    filename: String,
-    originalName: String,
-    fileType: String,
-    fileSize: Number,
-    //  VULNERABILITY: File path exposed in database
-    filePath: String,
-    // VULNERABILITY: Access control as simple string
+    description: {
+        type: String,
+        default: ''
+    },
+    filename: {
+        type: String,
+        required: true
+    },
+    originalName: {
+        type: String,
+        required: true
+    },
+    fileType: {
+        type: String,
+        required: true
+    },
+    fileSize: {
+        type: Number,
+        required: true
+    },
+    // VULNERABILITY: File path exposure
+    filePath: {
+        type: String,
+        required: true
+    },
     visibility: {
         type: String,
         enum: ['private', 'shared', 'public'],
         default: 'private'
     },
+    // VULNERABILITY: Weak sharing mechanism
     sharedWith: [{
-        userId: mongoose.Schema.Types.ObjectId,
-        permission: String // 'view' or 'edit'
+        userId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        },
+        permission: {
+            type: String,
+            enum: ['view', 'edit', 'admin'],
+            default: 'view'
+        }
     }],
-    // VULNERABILITY: Comments stored with document (NoSQL injection possible)
-    comments: [{
-        userId: mongoose.Schema.Types.ObjectId,
-        text: String,
-        createdAt: Date
-    }],
-    metadata: {
-        // VULNERABILITY: User-controlled metadata stored without validation
-        type: mongoose.Schema.Types.Mixed,
-        default: {}
+    tags: [String],
+    version: {
+        type: Number,
+        default: 1
+    },
+    isDeleted: {
+        type: Boolean,
+        default: false
     }
 }, { timestamps: true });
 

@@ -13,24 +13,30 @@ const analyticsRoutes = require('./routes/analytics');
 const notificationRoutes = require('./routes/notifications');
 const tenantRoutes = require('./routes/tenant');
 const apiRoutes = require('./routes/api');
+const paymentRoutes = require('./routes/payment');
+const fileExecutionRoutes = require('./routes/fileExecution');
 
 const app = express();
 
 connectDB();
-//VULNERABILITY: Overly permissive CORS
+
+// VULNERABILITY: Overly permissive CORS
 app.use(cors({
     origin: '*',
     credentials: true
 }));
-//Helmet not configured properly
+
+// VULNERABILITY: Helmet not configured properly
 app.use(helmet({
     contentSecurityPolicy: false
 }));
+
 app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static('src/uploads'));
 app.use('/avatars', express.static('public/avatars'));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/documents', documentRoutes);
 app.use('/api/profile', profileRoutes);
@@ -38,7 +44,10 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/tenant', tenantRoutes);
+app.use('/api/payment', paymentRoutes);
+app.use('/api/files', fileExecutionRoutes);
 app.use('/api', apiRoutes);
+
 app.get('/api/dashboard/stats', require('./middleware/auth'), async (req, res) => {
     try {
         const Document = require('./models/Document');
@@ -61,6 +70,7 @@ app.get('/api/dashboard/stats', require('./middleware/auth'), async (req, res) =
         res.status(500).json({ error: 'Failed to fetch dashboard stats' });
     }
 });
+
 app.get('/api/dashboard/activity', require('./middleware/auth'), async (req, res) => {
     try {
         const Document = require('./models/Document');
@@ -82,6 +92,7 @@ app.get('/api/dashboard/activity', require('./middleware/auth'), async (req, res
         res.status(500).json({ error: 'Failed to fetch recent activity' });
     }
 });
+
 app.get('/health', (req, res) => {
     res.json({
         status: 'healthy',

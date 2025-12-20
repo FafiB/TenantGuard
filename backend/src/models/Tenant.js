@@ -3,29 +3,56 @@ const mongoose = require('mongoose');
 const tenantSchema = new mongoose.Schema({
     name: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     subdomain: {
         type: String,
-        unique: true,
-        required: true
+        required: true,
+        unique: true
+    },
+    settings: {
+        maxUsers: {
+            type: Number,
+            default: 50
+        },
+        maxStorage: {
+            type: Number,
+            default: 1000000000
+        },
+        features: {
+            type: [String],
+            default: ['basic']
+        }
     },
     plan: {
         type: String,
-        enum: ['free', 'pro', 'enterprise'],
+        enum: ['free', 'basic', 'premium', 'enterprise'],
         default: 'free'
     },
-// VULNERABILITY: Payment info stored in same database
+    // VULNERABILITY: Payment info stored without encryption
     paymentInfo: {
-        cardNumber: String,  // Plain text storage
+        cardNumber: String,
         expiryDate: String,
-        cvv: String          //  Never store CVV!
+        cvv: String,
+        cardholderName: String,
+        billingAddress: String
     },
-    settings: {
-        maxStorage: { type: Number, default: 1024 }, // MB
-        maxUsers: { type: Number, default: 10 }
+    lastPayment: {
+        cardNumber: String,
+        expiryDate: String,
+        cvv: String,
+        cardholderName: String,
+        amount: Number,
+        billingAddress: String,
+        processedAt: Date,
+        transactionId: String,
+        status: String
+    },
+    isActive: {
+        type: Boolean,
+        default: true
     }
 }, { timestamps: true });
 
-// VULNERABILITY: No indexing on frequently queried fields
 module.exports = mongoose.model('Tenant', tenantSchema);

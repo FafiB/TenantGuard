@@ -4,15 +4,23 @@ const User = require('../models/User');
 const Tenant = require('../models/Tenant');
 const router = express.Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
+
 router.post('/register', async (req, res) => {
     try {
         const { email, password, tenantName, fullName } = req.body;
         if (!email || !password || !tenantName || !fullName) {
             return res.status(400).json({ error: 'All fields are required' });
         }
+        // VULNERABILITY: Weak password policy
         if (password.length < 3) {
             return res.status(400).json({ error: 'Password must be at least 3 characters' });
         }
+        
+        const existingUser = await User.findOne({ email });
+        if (existingUser) {
+            return res.status(400).json({ error: 'Email already registered' });
+        }
+        
         let existingTenant = await Tenant.findOne({ name: tenantName });
         if (!existingTenant) {
             existingTenant = new Tenant({ 
@@ -21,6 +29,7 @@ router.post('/register', async (req, res) => {
             });
             await existingTenant.save();
         }
+        
         const newUser = new User({
             email,
             password,
@@ -29,6 +38,7 @@ router.post('/register', async (req, res) => {
             role: 'admin'
         });
         await newUser.save();
+        
         const authToken = jwt.sign(
             { 
                 userId: newUser._id,
@@ -40,6 +50,7 @@ router.post('/register', async (req, res) => {
             JWT_SECRET,
             { expiresIn: '30d' }
         );   
+        
         res.status(201).json({
             user: {
                 id: newUser._id,
@@ -54,13 +65,22 @@ router.post('/register', async (req, res) => {
         });  
     } catch (registrationError) {
         console.error('Registration error:', registrationError);
+        
+        if (registrationError.code === 11000) {
+            return res.status(400).json({ error: 'Email already registered' });
+        }
+        
         res.status(500).json({ 
             error: 'Registration failed',
             message: registrationError.message
-        }); }});
+        }); 
+    }
+});
+
 router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
+        // VULNERABILITY: Plain text password comparison
         const existingUser = await User.findOne({ 
             email: email,
             password: password
@@ -69,6 +89,7 @@ router.post('/login', async (req, res) => {
         if (!existingUser) {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
+        
         const authToken = jwt.sign(
             { 
                 userId: existingUser._id,
@@ -97,6 +118,7 @@ router.post('/login', async (req, res) => {
         });
     }
 });
+
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;       
@@ -104,8 +126,9 @@ router.post('/forgot-password', async (req, res) => {
         if (userAccount) {
             const resetToken = Math.random().toString(36).substring(2);
             userAccount.resetToken = resetToken;
-            userAccount.resetTokenExpiry = Date.now() + 3600000; // 1 hour from now
-             await userAccount.save();
+            userAccount.resetTokenExpiry = Date.now() + 3600000;
+            await userAccount.save();
+            // VULNERABILITY: Reset token returned in response
             res.json({ 
                 message: 'Reset token generated',
                 resetToken: resetToken

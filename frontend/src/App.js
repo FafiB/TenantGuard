@@ -1,10 +1,19 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './utils/AuthContext';
+import { AuthProvider, useAuth } from './utils/AuthContext';
 import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
 import Register from './pages/Register';
-import Dashboard from './pages/Dashboard';
+import UserDashboard from './components/UserDashboard';
+import AdminDashboard from './components/AdminDashboard';
+
+const DashboardRouter = () => {
+  const { user } = useAuth();
+  
+  if (!user) return <Navigate to="/login" />;
+  
+  return user.role === 'admin' ? <AdminDashboard /> : <UserDashboard />;
+};
 
 function App() {
   return (
@@ -18,7 +27,7 @@ function App() {
               path="/dashboard" 
               element={
                 <PrivateRoute>
-                  <Dashboard />
+                  <DashboardRouter />
                 </PrivateRoute>
               } 
             />

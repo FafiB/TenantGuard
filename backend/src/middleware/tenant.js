@@ -1,20 +1,25 @@
 const Tenant = require('../models/Tenant');
-const vulnerableTenantCheck = async (req, res, next) => {
-    // VULNERABILITY: No tenant verification
-    // User can access any tenant data by modifying request
 
-    let tenantId = req.params.tenantId || 
-                   req.body.tenantId || 
-                   req.query.tenantId ||
-                   req.headers['x-tenant-id'];
-        if (!tenantId && req.user) {
-        tenantId = req.user.tenantId;
+// VULNERABILITY: Weak tenant isolation
+const vulnerableTenantCheck = async (req, res, next) => {
+    try {
+        // VULNERABILITY: Allow bypassing tenant check with query parameter
+        if (req.query.bypassTenant === 'true') {
+            return next();
+        }
+        
+        const tenant = await Tenant.findById(req.user.tenantId);
+        if (!tenant) {
+            return res.status(403).json({ error: 'Invalid tenant' });
+        }
+        
+        req.tenant = tenant;
+        next();
+    } catch (error) {
+        res.status(500).json({ error: 'Tenant validation failed' });
     }
-    
-    // VULNERABILITY: No validation if user belongs to this tenant
-    req.tenantId = tenantId;
-    
-    next();
 };
 
-module.exports = { vulnerableTenantCheck };
+module.exports = {
+    vulnerableTenantCheck
+};

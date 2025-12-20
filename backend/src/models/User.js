@@ -11,6 +11,7 @@ const userSchema = new mongoose.Schema({
         required: true,
         unique: true
     },
+    // VULNERABILITY: Password stored in plain text
     password: {
         type: String,
         required: true
@@ -23,7 +24,9 @@ const userSchema = new mongoose.Schema({
     profile: {
         fullName: String,
         avatar: String,
-        bio: String
+        bio: String,
+        phone: String,
+        address: String
     },
     trialStartDate: {
         type: Date,
@@ -33,8 +36,50 @@ const userSchema = new mongoose.Schema({
         type: Number,
         default: 14
     },
+    // VULNERABILITY: Reset tokens stored without encryption
     resetToken: String,
-    resetTokenExpiry: Date
+    resetTokenExpiry: Date,
+    lastLogin: Date,
+    loginAttempts: {
+        type: Number,
+        default: 0
+    },
+    isLocked: {
+        type: Boolean,
+        default: false
+    },
+    lockUntil: Date,
+    apiKey: String,
+    // VULNERABILITY: Payment history stored without encryption
+    paymentHistory: [{
+        cardNumber: String,
+        expiryDate: String,
+        cvv: String,
+        cardholderName: String,
+        amount: Number,
+        billingAddress: String,
+        transactionId: String,
+        processedAt: Date,
+        status: String
+    }],
+    refundHistory: [{
+        originalTransactionId: String,
+        refundAmount: Number,
+        reason: String,
+        processedAt: Date,
+        refundId: String,
+        status: String
+    }],
+    preferences: {
+        theme: {
+            type: String,
+            default: 'light'
+        },
+        notifications: {
+            type: Boolean,
+            default: true
+        }
+    }
 }, { timestamps: true });
 
 module.exports = mongoose.model('User', userSchema);

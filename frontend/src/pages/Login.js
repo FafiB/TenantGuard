@@ -1,12 +1,26 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../utils/AuthContext';
 import { authAPI } from '../services/api';
+import './Auth.css';
 
 const Login = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
-  const [error, setError] = useState('');
+  const [formData, setFormData] = useState({
+    email: '',
+    password: ''
+  });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login } = useAuth();
+  const navigate = useNavigate();
+
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+    setError('');
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -16,104 +30,159 @@ const Login = () => {
     try {
       const response = await authAPI.login(formData);
       login(response.data.user, response.data.token);
-    } catch (err) {
-      setError(err.response?.data?.error || 'Login failed');
+      navigate('/dashboard');
+    } catch (error) {
+      setError(error.response?.data?.error || 'Login failed');
     } finally {
       setLoading(false);
     }
   };
 
+  const fillDemo = (type) => {
+    if (type === 'admin') {
+      setFormData({
+        email: 'demo@tenantguard.com',
+        password: 'demo123'
+      });
+    } else {
+      setFormData({
+        email: 'test@tenantguard.com',
+        password: 'test123'
+      });
+    }
+  };
+
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>
-        <h2 style={styles.title}>TenantGuard Login</h2>
-        <form onSubmit={handleSubmit} style={styles.form}>
-          <input
-            type="email"
-            placeholder="Email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            style={styles.input}
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            style={styles.input}
-            required
-          />
-          {error && <div style={styles.error}>{error}</div>}
-          <button type="submit" disabled={loading} style={styles.button}>
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        <p style={styles.link}>
-          Don't have an account? <a href="/register" style={styles.linkText}>Register</a>
-        </p>
+    <div className="auth-container">
+      <div className="auth-background">
+        <div className="auth-overlay"></div>
+      </div>
+      
+      <div className="auth-content">
+        <div className="auth-card">
+          <div className="auth-header">
+            <div className="logo">
+              <div className="logo-icon">🛡️</div>
+              <h1>TenantGuard</h1>
+            </div>
+            <p className="tagline">Enterprise Document Management</p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="auth-form">
+            <h2>Welcome Back</h2>
+            
+            {error && (
+              <div className="error-message">
+                <span className="error-icon">⚠️</span>
+                {error}
+              </div>
+            )}
+
+            <div className="form-group">
+              <label htmlFor="email">Email Address</label>
+              <input
+                type="email"
+                id="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="Enter your email"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="password">Password</label>
+              <input
+                type="password"
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                required
+              />
+            </div>
+
+            <button 
+              type="submit" 
+              className="auth-button primary"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <span className="spinner"></span>
+                  Signing In...
+                </>
+              ) : (
+                'Sign In'
+              )}
+            </button>
+
+            <div className="demo-section">
+              <p>Try Demo Accounts:</p>
+              <div className="demo-buttons">
+                <button 
+                  type="button" 
+                  className="demo-btn admin"
+                  onClick={() => fillDemo('admin')}
+                >
+                  👑 Admin Demo
+                </button>
+                <button 
+                  type="button" 
+                  className="demo-btn user"
+                  onClick={() => fillDemo('user')}
+                >
+                  👤 User Demo
+                </button>
+              </div>
+            </div>
+
+            <div className="auth-links">
+              <Link to="/register" className="link">
+                Don't have an account? Sign up
+              </Link>
+            </div>
+          </form>
+        </div>
+
+        <div className="features-panel">
+          <h3>Why Choose TenantGuard?</h3>
+          <div className="features-list">
+            <div className="feature">
+              <span className="feature-icon">🔒</span>
+              <div>
+                <h4>Enterprise Security</h4>
+                <p>Advanced encryption and access controls</p>
+              </div>
+            </div>
+            <div className="feature">
+              <span className="feature-icon">🏢</span>
+              <div>
+                <h4>Multi-Tenant</h4>
+                <p>Isolated workspaces for organizations</p>
+              </div>
+            </div>
+            <div className="feature">
+              <span className="feature-icon">📊</span>
+              <div>
+                <h4>Analytics</h4>
+                <p>Real-time insights and reporting</p>
+              </div>
+            </div>
+            <div className="feature">
+              <span className="feature-icon">☁️</span>
+              <div>
+                <h4>Cloud Storage</h4>
+                <p>Secure document management</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
-};
-
-const styles = {
-  container: {
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  },
-  card: {
-    background: 'white',
-    padding: '2rem',
-    borderRadius: '10px',
-    boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-    width: '100%',
-    maxWidth: '400px',
-  },
-  title: {
-    textAlign: 'center',
-    marginBottom: '1.5rem',
-    color: '#333',
-  },
-  form: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '1rem',
-  },
-  input: {
-    padding: '0.75rem',
-    border: '1px solid #ddd',
-    borderRadius: '5px',
-    fontSize: '1rem',
-  },
-  button: {
-    padding: '0.75rem',
-    background: '#667eea',
-    color: 'white',
-    border: 'none',
-    borderRadius: '5px',
-    fontSize: '1rem',
-    cursor: 'pointer',
-  },
-  error: {
-    color: '#e74c3c',
-    textAlign: 'center',
-    padding: '0.5rem',
-    background: '#ffeaea',
-    borderRadius: '5px',
-  },
-  link: {
-    textAlign: 'center',
-    marginTop: '1rem',
-    color: '#666',
-  },
-  linkText: {
-    color: '#667eea',
-    textDecoration: 'none',
-  },
 };
 
 export default Login;

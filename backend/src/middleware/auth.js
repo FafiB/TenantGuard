@@ -2,6 +2,8 @@ const jwt=require('jsonwebtoken');
 require('dotenv').config();
 const User=require('../models/User');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
+
 const auth=async(req,res,next)=>{
     try{
         const token=req.header('Authorization').replace('Bearer ','');
@@ -22,4 +24,3 @@ const auth=async(req,res,next)=>{
 }
         
    module.exports = auth;
-

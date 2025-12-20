@@ -6,68 +6,83 @@ require('dotenv').config();
 
 const initDatabase = async () => {
     try {
-        console.log('🔄 Initializing TenantGuard Database...');
-        
-        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tenant_shield');
-        console.log('✅ Connected to MongoDB');
+        await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/tenantguard');
+        console.log('Connected to MongoDB');
 
+        // Clear existing data
         await User.deleteMany({});
         await Tenant.deleteMany({});
         await Document.deleteMany({});
-        console.log('🧹 Cleared existing data');
 
-        const sampleTenant = new Tenant({
-            name: 'TenantGuard Demo Corp',
-            subdomain: 'demo',
-            plan: 'enterprise'
+        // Create demo tenant
+        const demoTenant = new Tenant({
+            name: 'Demo Corporation',
+            subdomain: 'demo-corp',
+            settings: {
+                maxUsers: 100,
+                maxStorage: 1000000000 // 1GB
+            }
         });
-        await sampleTenant.save();
-        console.log('🏢 Created sample tenant');
+        await demoTenant.save();
 
-        const adminUser = new User({
-            email: 'admin@tenantguard.com',
-            password: 'admin123',
+        // Create demo user
+        const demoUser = new User({
+            email: 'demo@tenantguard.com',
+            password: 'demo123', // VULNERABILITY: Plaintext password
+            tenantId: demoTenant._id,
             role: 'admin',
-            tenantId: sampleTenant._id,
             profile: {
-                fullName: 'System Administrator',
-                bio: 'TenantGuard system administrator'
+                fullName: 'Selemon Hailu',
+                bio: 'Demo account for testing'
             }
         });
-        await adminUser.save();
-        console.log('👤 Created admin user');
+        await demoUser.save();
 
-        const regularUser = new User({
-            email: 'user@tenantguard.com',
-            password: 'user123',
+        // Create additional vulnerable user
+        const testUser = new User({
+            email: 'test@tenantguard.com',
+            password: 'test123',
+            tenantId: demoTenant._id,
             role: 'user',
-            tenantId: sampleTenant._id,
             profile: {
-                fullName: 'Alemayehu Tesfaye',
-                bio: 'Regular user for testing'
+                fullName: 'Test User'
             }
         });
-        await regularUser.save();
-        console.log('👤 Created regular user');
-        console.log(`
-🎉 Database initialization complete!
+        await testUser.save();
 
-📊 Credentials:
-- Admin: admin@tenantguard.com / admin123
-- User: user@tenantguard.com / user123
+        // Create admin user for another tenant
+        const evilTenant = new Tenant({
+            name: 'Evil Corp',
+            subdomain: 'evil-corp',
+            settings: {
+                maxUsers: 50,
+                maxStorage: 500000000
+            }
+        });
+        await evilTenant.save();
 
-🚀 Start the server with: npm start
-        `);
+        const evilAdmin = new User({
+            email: 'admin@evilcorp.com',
+            password: 'admin123',
+            tenantId: evilTenant._id,
+            role: 'admin',
+            profile: {
+                fullName: 'Evil Admin'
+            }
+        });
+        await evilAdmin.save();
+
+        console.log('Database initialized successfully!');
+        console.log('Demo credentials:');
+        console.log('  Admin: demo@tenantguard.com / demo123');
+        console.log('  User: test@tenantguard.com / test123');
+        console.log('  Evil Admin: admin@evilcorp.com / admin123');
 
         process.exit(0);
     } catch (error) {
-        console.error('❌ Error:', error.message);
+        console.error('Database initialization failed:', error);
         process.exit(1);
     }
 };
 
-if (require.main === module) {
-    initDatabase();
-}
-
-module.exports = initDatabase;
+initDatabase();

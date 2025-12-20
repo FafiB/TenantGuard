@@ -1,123 +1,288 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const User = require('../models/User');
-const Tenant = require('../models/Tenant');
+const multer = require('multer');
+const path = require('path');
+const auth = require('../middleware/auth');
+const Document = require('../models/Document');
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
-router.post('/register', async (req, res) => {
+// VULNERABILITY: Insecure file upload configuration
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'src/uploads/');
+    },
+    filename: (req, file, cb) => {
+        // VULNERABILITY: Predictable filename - no sanitization
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+
+const upload = multer({ 
+    storage,
+    limits: { 
+        fileSize: 100 * 1024 * 1024, // 100MB
+        // VULNERABILITY: No file count limit
+        files: 999
+    },
+    // VULNERABILITY: Accept ALL file types including executables
+    fileFilter: (req, file, cb) => {
+        // Accept everything - no validation
+        cb(null, true);
+    }
+});
+
+// Get user documents (with BOLA vulnerability)
+router.get('/', auth, async (req, res) => {
     try {
-        const { email, password, tenantName, fullName } = req.body;
-        if (!email || !password || !tenantName || !fullName) {
-            return res.status(400).json({ error: 'All fields are required' });
-        }
-        if (password.length < 3) {
-            return res.status(400).json({ error: 'Password must be at least 3 characters' });
-        } 
-        let existingTenant = await Tenant.findOne({ name: tenantName });
-        if (!existingTenant) {
-            existingTenant = new Tenant({ 
-                name: tenantName,
-                subdomain: tenantName.toLowerCase().replace(/\s+/g, '-')
-            });
-            await existingTenant.save();
-        }
-        const newUser = new User({
-            email,
-            password,
-            tenantId: existingTenant._id,
-            profile: { fullName },
-            role: 'admin'
+        // VULNERABILITY: Can access other tenant documents via query
+        const { tenantId } = req.query;
+        const query = tenantId ? { tenantId } : { userId: req.user._id };
+        
+        const documents = await Document.find(query)
+            .populate('userId', 'email profile')
+            .sort({ createdAt: -1 });
+        
+        res.json(documents);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Upload document
+router.post('/upload', auth, upload.single('file'), async (req, res) => {
+    try {
+        console.log('Upload request received:', {
+            file: req.file,
+            body: req.body,
+            user: req.user._id
         });
-        await newUser.save();
-        const authToken = jwt.sign(
-            { 
-                userId: newUser._id,
-                email: newUser.email,
-                tenantId: newUser.tenantId,
-                role: newUser.role,
-                profile: newUser.profile
-            },
-            JWT_SECRET,
-            { expiresIn: '30d' }
-        );
+        
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+        
+        const { title, description, visibility = 'private' } = req.body;
+        
+        const document = new Document({
+            tenantId: req.user.tenantId,
+            userId: req.user._id,
+            title: title || req.file.originalname,
+            description: description || 'Uploaded document',
+            filename: req.file.filename,
+            originalName: req.file.originalname,
+            fileType: path.extname(req.file.originalname),
+            fileSize: req.file.size,
+            // VULNERABILITY: Expose full file system path
+            filePath: req.file.path,
+            visibility
+        });
+        
+        await document.save();
+        console.log('Document saved:', document);
         
         res.status(201).json({
-            user: {
-                id: newUser._id,
-                email: newUser.email,
-                profile: newUser.profile
-            },
-            token: authToken,
-            tenant: {
-                id: existingTenant._id,
-                name: existingTenant.name
+            success: true,
+            message: 'File uploaded successfully',
+            document: document,
+            // VULNERABILITY: Expose server file path
+            serverPath: req.file.path,
+            // VULNERABILITY: Expose system info
+            systemInfo: {
+                platform: process.platform,
+                nodeVersion: process.version,
+                uploadTime: new Date().toISOString()
             }
-        });} catch (registrationError) {
-        console.error('Registration error:', registrationError);
+        });
+    } catch (error) {
+        console.error('Upload error:', error);
+        // VULNERABILITY: Expose detailed error information
         res.status(500).json({ 
-            error: 'Registration failed',
-            message: registrationError.message
-        });
-    }});
-router.post('/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        const existingUser = await User.findOne({ 
-            email: email,
-            password: password
-        });
-        
-        if (!existingUser) {
-            return res.status(401).json({ error: 'Invalid credentials' });
-        }
-        const authToken = jwt.sign(
-            { 
-                userId: existingUser._id,
-                email: existingUser.email,
-                tenantId: existingUser.tenantId,
-                role: existingUser.role
-            },
-            JWT_SECRET,
-            { expiresIn: '30d' }
-        );
-        
-        res.json({
-            user: {
-                id: existingUser._id,
-                email: existingUser.email,
-                role: existingUser.role,
-                profile: existingUser.profile
-            },
-            token: authToken
-        });
-        
-    } catch (loginError) {
-        res.status(500).json({ 
-            error: 'Login failed',
-            message: loginError.message
+            error: 'Upload failed',
+            details: error.message,
+            stack: error.stack,
+            file: req.file
         });
     }
 });
-router.post('/forgot-password', async (req, res) => {
+
+// Get specific document (BOLA vulnerability)
+router.get('/:id', auth, async (req, res) => {
     try {
-        const { email } = req.body;
-        const userAccount = await User.findOne({ email });
-        if (userAccount) {
-            const resetToken = Math.random().toString(36).substring(2);
-            userAccount.resetToken = resetToken;
-            userAccount.resetTokenExpiry = Date.now() + 3600000; 
-            await userAccount.save();
-            res.json({ 
-                message: 'Reset token generated',
-                resetToken: resetToken
-            });
-        } else {
-            res.json({ message: 'If user exists, reset email sent' });
+        // VULNERABILITY: No ownership check
+        const document = await Document.findById(req.params.id)
+            .populate('userId', 'email profile');
+        
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
         }
         
-    } catch (resetError) {
-        res.status(500).json({ error: resetError.message });
+        res.json(document);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Update document (BOLA vulnerability)
+router.put('/:id', auth, async (req, res) => {
+    try {
+        const { title, description, visibility } = req.body;
+        
+        // VULNERABILITY: No ownership check
+        const document = await Document.findByIdAndUpdate(
+            req.params.id,
+            { title, description, visibility },
+            { new: true }
+        );
+        
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+        
+        res.json(document);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Delete document (BOLA vulnerability)
+router.delete('/:id', auth, async (req, res) => {
+    try {
+        // VULNERABILITY: No ownership check
+        const document = await Document.findByIdAndDelete(req.params.id);
+        
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+        
+        res.json({ message: 'Document deleted successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Share document (BOLA vulnerability)
+router.post('/:id/share', auth, async (req, res) => {
+    try {
+        const { userIds, permission = 'view' } = req.body;
+        
+        // VULNERABILITY: No ownership check
+        const document = await Document.findById(req.params.id);
+        
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+        
+        // VULNERABILITY: Can share with any user
+        const sharedWith = userIds.map(userId => ({ userId, permission }));
+        document.sharedWith = [...document.sharedWith, ...sharedWith];
+        document.visibility = 'shared';
+        
+        await document.save();
+        res.json({ message: 'Document shared successfully', document });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// View/preview document content (VULNERABILITY: No authorization check)
+router.get('/:id/view', auth, async (req, res) => {
+    try {
+        // VULNERABILITY: No ownership check
+        const document = await Document.findById(req.params.id)
+            .populate('userId', 'email profile');
+        
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+        
+        const filePath = path.join(__dirname, '..', document.filePath);
+        const fs = require('fs');
+        
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'File not found on disk' });
+        }
+        
+        const fileStats = fs.statSync(filePath);
+        const fileExtension = path.extname(document.originalName).toLowerCase();
+        
+        // VULNERABILITY: Read any file type without validation
+        let content = '';
+        let contentType = 'text/plain';
+        let isReadable = true;
+        
+        try {
+            if (['.txt', '.md', '.json', '.js', '.html', '.css', '.xml', '.csv', '.log'].includes(fileExtension)) {
+                content = fs.readFileSync(filePath, 'utf8');
+                contentType = 'text/plain';
+            } else if (['.jpg', '.jpeg', '.png', '.gif', '.bmp'].includes(fileExtension)) {
+                // VULNERABILITY: Expose file system path for images
+                content = `data:image/${fileExtension.slice(1)};base64,${fs.readFileSync(filePath).toString('base64')}`;
+                contentType = 'image';
+            } else if (fileExtension === '.pdf') {
+                content = fs.readFileSync(filePath).toString('base64');
+                contentType = 'application/pdf';
+            } else {
+                // VULNERABILITY: Try to read binary files as text
+                const buffer = fs.readFileSync(filePath);
+                content = buffer.toString('hex');
+                contentType = 'binary/hex';
+            }
+        } catch (readError) {
+            content = `Error reading file: ${readError.message}`;
+            isReadable = false;
+        }
+        
+        res.json({
+            document: {
+                id: document._id,
+                title: document.title,
+                description: document.description,
+                originalName: document.originalName,
+                fileType: document.fileType,
+                fileSize: document.fileSize,
+                owner: document.userId,
+                createdAt: document.createdAt
+            },
+            content: content,
+            contentType: contentType,
+            isReadable: isReadable,
+            fileStats: {
+                size: fileStats.size,
+                created: fileStats.birthtime,
+                modified: fileStats.mtime,
+                // VULNERABILITY: Expose full system path
+                fullPath: filePath
+            },
+            // VULNERABILITY: Expose system information
+            systemInfo: {
+                platform: process.platform,
+                nodeVersion: process.version,
+                workingDirectory: process.cwd()
+            }
+        });
+    } catch (error) {
+        // VULNERABILITY: Expose detailed error information
+        res.status(500).json({ 
+            error: error.message,
+            stack: error.stack,
+            filePath: req.params.id
+        });
+    }
+});
+
+// Keep download endpoint for actual file downloads
+router.get('/:id/download', auth, async (req, res) => {
+    try {
+        // VULNERABILITY: No ownership check
+        const document = await Document.findById(req.params.id);
+        
+        if (!document) {
+            return res.status(404).json({ error: 'Document not found' });
+        }
+        
+        const filePath = path.join(__dirname, '..', document.filePath);
+        res.download(filePath, document.originalName);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
 });
 
