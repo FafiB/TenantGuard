@@ -43,13 +43,12 @@ const initDatabase = async () => {
             role: 'user',
             tenantId: sampleTenant._id,
             profile: {
-                fullName: 'John Doe',
+                fullName: 'Alemayehu Tesfaye',
                 bio: 'Regular user for testing'
             }
         });
         await regularUser.save();
         console.log('👤 Created regular user');
-
         console.log(`
 🎉 Database initialization complete!
 
