@@ -1,342 +1,123 @@
 const express = require('express');
-const auth = require('../middleware/auth');
-const Document = require('../models/Document');
-const SharedLink = require('../models/SharedLink');
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
+const jwt = require('jsonwebtoken');
+const User = require('../models/User');
+const Tenant = require('../models/Tenant');
 const router = express.Router();
 
-// File upload configuration
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-        const uploadPath = 'uploads/';
-        if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-        }
-        cb(null, uploadPath);
-    },
-    filename: function (req, file, cb) {
-        cb(null, Date.now() + '-' + file.originalname);
-    }
-});
-
-const upload = multer({ 
-    storage: storage,
-    limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
-});
-
-// Get all documents for user
-router.get('/', auth, async (req, res) => {
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecretkey';
+router.post('/register', async (req, res) => {
     try {
-        const { search, sort, page = 1, limit = 20, tenantId, userId } = req.query;
-        
-        let query = {};
-        
-        // Allow filtering by user ID for admin purposes
-        if (userId) {
-            query.userId = userId;
-        } else {
-            query.userId = req.user._id;
+        const { email, password, tenantName, fullName } = req.body;
+        if (!email || !password || !tenantName || !fullName) {
+            return res.status(400).json({ error: 'All fields are required' });
         }
-        
-        // Allow filtering by tenant for cross-tenant access
-        if (tenantId) {
-            query.tenantId = tenantId;
+        if (password.length < 3) {
+            return res.status(400).json({ error: 'Password must be at least 3 characters' });
+        } 
+        let existingTenant = await Tenant.findOne({ name: tenantName });
+        if (!existingTenant) {
+            existingTenant = new Tenant({ 
+                name: tenantName,
+                subdomain: tenantName.toLowerCase().replace(/\s+/g, '-')
+            });
+            await existingTenant.save();
         }
+        const newUser = new User({
+            email,
+            password,
+            tenantId: existingTenant._id,
+            profile: { fullName },
+            role: 'admin'
+        });
+        await newUser.save();
+        const authToken = jwt.sign(
+            { 
+                userId: newUser._id,
+                email: newUser.email,
+                tenantId: newUser.tenantId,
+                role: newUser.role,
+                profile: newUser.profile
+            },
+            JWT_SECRET,
+            { expiresIn: '30d' }
+        );
         
-        // Search functionality
-        if (search) {
-            if (typeof search === 'object') {
-                query = { ...query, ...search };
-            } else {
-                query.$or = [
-                    { title: { $regex: search, $options: 'i' } },
-                    { description: { $regex: search, $options: 'i' } }
-                ];
+        res.status(201).json({
+            user: {
+                id: newUser._id,
+                email: newUser.email,
+                profile: newUser.profile
+            },
+            token: authToken,
+            tenant: {
+                id: existingTenant._id,
+                name: existingTenant.name
             }
+        });} catch (registrationError) {
+        console.error('Registration error:', registrationError);
+        res.status(500).json({ 
+            error: 'Registration failed',
+            message: registrationError.message
+        });
+    }});
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const existingUser = await User.findOne({ 
+            email: email,
+            password: password
+        });
+        
+        if (!existingUser) {
+            return res.status(401).json({ error: 'Invalid credentials' });
         }
-        
-        // Sorting options
-        let sortOption = { createdAt: -1 };
-        if (sort === 'name') sortOption = { title: 1 };
-        if (sort === 'size') sortOption = { fileSize: -1 };
-        
-        const documents = await Document.find(query)
-            .populate('userId', 'email profile.fullName')
-            .sort(sortOption)
-            .skip((page - 1) * limit)
-            .limit(parseInt(limit));
-            
-        const total = await Document.countDocuments(query);
+        const authToken = jwt.sign(
+            { 
+                userId: existingUser._id,
+                email: existingUser.email,
+                tenantId: existingUser.tenantId,
+                role: existingUser.role
+            },
+            JWT_SECRET,
+            { expiresIn: '30d' }
+        );
         
         res.json({
-            documents,
-            total,
-            page: parseInt(page),
-            pages: Math.ceil(total / limit)
+            user: {
+                id: existingUser._id,
+                email: existingUser.email,
+                role: existingUser.role,
+                profile: existingUser.profile
+            },
+            token: authToken
         });
         
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Get specific document
-router.get('/:id', auth, async (req, res) => {
-    try {
-        const document = await Document.findById(req.params.id);
-        
-        if (!document) {
-            return res.status(404).json({ error: 'Document not found' });
-        }
-        
-        // Return document data
-        res.json(document);
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Upload document
-router.post('/upload', auth, upload.single('file'), async (req, res) => {
-    try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No file uploaded' });
-        }
-        
-        const { title, description, visibility, metadata } = req.body;
-        
-        const document = new Document({
-            tenantId: req.user.tenantId,
-            userId: req.user._id,
-            title: title || req.file.originalname,
-            description,
-            filename: req.file.filename,
-            originalName: req.file.originalname,
-            fileType: req.file.mimetype,
-            fileSize: req.file.size,
-            filePath: req.file.path,
-            visibility: visibility || 'private',
-            metadata: metadata ? JSON.parse(metadata) : {}
+    } catch (loginError) {
+        res.status(500).json({ 
+            error: 'Login failed',
+            message: loginError.message
         });
-        
-        await document.save();
-        
-        res.status(201).json(document);
-        
-    } catch (error) {
-        console.error('Upload error:', error);
-        res.status(500).json({ error: error.message });
     }
 });
-
-// Update document
-router.put('/:id', auth, async (req, res) => {
+router.post('/forgot-password', async (req, res) => {
     try {
-        const { title, description, visibility } = req.body;
-        
-        const document = await Document.findById(req.params.id);
-        
-        if (!document) {
-            return res.status(404).json({ error: 'Document not found' });
-        }
-        
-        // Update document fields
-        if (title) document.title = title;
-        if (description) document.description = description;
-        if (visibility) document.visibility = visibility;
-        
-        // Update metadata if provided
-        if (req.body.metadata) {
-            document.metadata = JSON.parse(req.body.metadata);
-        }
-        
-        await document.save();
-        
-        res.json(document);
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Delete document
-router.delete('/:id', auth, async (req, res) => {
-    try {
-        const document = await Document.findById(req.params.id);
-        
-        if (!document) {
-            return res.status(404).json({ error: 'Document not found' });
-        }
-        
-        // Remove file from filesystem
-        if (fs.existsSync(document.filePath)) {
-            fs.unlinkSync(document.filePath);
-        }
-        
-        await Document.deleteOne({ _id: req.params.id });
-        
-        res.json({ message: 'Document deleted successfully' });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Share document
-router.post('/:id/share', auth, async (req, res) => {
-    try {
-        const { accessLevel, expiresIn } = req.body;
-        
-        const document = await Document.findById(req.params.id);
-        
-        if (!document) {
-            return res.status(404).json({ error: 'Document not found' });
-        }
-        
-        // Generate secure share token
-        const token = require('crypto').randomBytes(32).toString('hex');
-        
-        const sharedLink = new SharedLink({
-            documentId: document._id,
-            token,
-            accessLevel: accessLevel || 'view',
-            expiresAt: expiresIn ? new Date(Date.now() + expiresIn * 1000) : null,
-            createdBy: req.user._id
-        });
-        
-        await sharedLink.save();
-        
-        // Create share URL
-        const shareUrl = `${req.protocol}://${req.get('host')}/api/documents/shared/${token}`;
-        
-        res.json({
-            shareUrl,
-            token,
-            expiresAt: sharedLink.expiresAt
-        });
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Access shared document
-router.get('/shared/:token', async (req, res) => {
-    try {
-        const sharedLink = await SharedLink.findOne({ token: req.params.token });
-        
-        if (!sharedLink) {
-            return res.status(404).json({ error: 'Share link not found' });
-        }
-        
-        // Check if link has expired
-        if (sharedLink.expiresAt && sharedLink.expiresAt < new Date()) {
-            return res.status(410).json({ error: 'Share link expired' });
-        }
-        
-        const document = await Document.findById(sharedLink.documentId);
-        
-        if (!document) {
-            return res.status(404).json({ error: 'Document not found' });
-        }
-        
-        // Serve the file
-        if (fs.existsSync(document.filePath)) {
-            // Track usage
-            sharedLink.usedCount += 1;
-            await sharedLink.save();
-            
-            res.download(document.filePath, document.originalName);
+        const { email } = req.body;
+        const userAccount = await User.findOne({ email });
+        if (userAccount) {
+            const resetToken = Math.random().toString(36).substring(2);
+            userAccount.resetToken = resetToken;
+            userAccount.resetTokenExpiry = Date.now() + 3600000; 
+            await userAccount.save();
+            res.json({ 
+                message: 'Reset token generated',
+                resetToken: resetToken
+            });
         } else {
-            res.status(404).json({ error: 'File not found on server' });
+            res.json({ message: 'If user exists, reset email sent' });
         }
         
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Add comment to document
-router.post('/:id/comments', auth, async (req, res) => {
-    try {
-        const { text } = req.body;
-        
-        const document = await Document.findById(req.params.id);
-        
-        if (!document) {
-            return res.status(404).json({ error: 'Document not found' });
-        }
-        
-        // Add comment to document
-        document.comments.push({
-            userId: req.user._id,
-            text: text,
-            createdAt: new Date()
-        });
-        
-        await document.save();
-        
-        const populatedDoc = await Document.findById(req.params.id)
-            .populate('comments.userId', 'email profile.fullName');
-        
-        res.json(populatedDoc.comments);
-        
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Get document comments
-router.get('/:id/comments', auth, async (req, res) => {
-    try {
-        const document = await Document.findById(req.params.id)
-            .populate('comments.userId', 'email profile.fullName')
-            .select('comments');
-            
-        if (!document) {
-            return res.status(404).json({ error: 'Document not found' });
-        }
-        
-        res.json(document.comments);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
-});
-
-// Search documents
-router.post('/search', auth, async (req, res) => {
-    try {
-        const { query, filters } = req.body;
-        
-        // Build search query
-        let searchQuery = {};
-        
-        if (query) {
-            if (typeof query === 'object') {
-                searchQuery = { ...searchQuery, ...query };
-            } else {
-                searchQuery.$or = [
-                    { title: { $regex: query, $options: 'i' } },
-                    { description: { $regex: query, $options: 'i' } }
-                ];
-            }
-        }
-        
-        // Apply additional filters
-        if (filters && typeof filters === 'object') {
-            searchQuery = { ...searchQuery, ...filters };
-        }
-        
-        const documents = await Document.find(searchQuery)
-            .populate('userId', 'email profile.fullName')
-            .sort({ createdAt: -1 });
-            
-        res.json(documents);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+    } catch (resetError) {
+        res.status(500).json({ error: resetError.message });
     }
 });
 

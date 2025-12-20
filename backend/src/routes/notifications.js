@@ -2,16 +2,13 @@ const express = require('express');
 const auth = require('../middleware/auth');
 const router = express.Router();
 
-// In-memory notification store (in production, use database)
 const notifications = new Map();
 
-// Get user notifications
 router.get('/', auth, async (req, res) => {
     try {
         const userId = req.user._id.toString();
         const userNotifications = notifications.get(userId) || [];
         
-        // Add some default notifications for demo
         if (userNotifications.length === 0) {
             const defaultNotifications = [
                 {
@@ -29,7 +26,7 @@ router.get('/', auth, async (req, res) => {
                     type: 'security',
                     title: 'Security Update',
                     message: 'Your account security settings have been updated.',
-                    timestamp: new Date(Date.now() - 3600000), // 1 hour ago
+                    timestamp: new Date(Date.now() - 3600000),
                     read: false,
                     icon: '🔒',
                     color: 'green'
@@ -39,7 +36,7 @@ router.get('/', auth, async (req, res) => {
                     type: 'storage',
                     title: 'Storage Usage',
                     message: 'You are using 45% of your storage quota.',
-                    timestamp: new Date(Date.now() - 7200000), // 2 hours ago
+                    timestamp: new Date(Date.now() - 7200000),
                     read: true,
                     icon: '💾',
                     color: 'yellow'
@@ -72,7 +69,6 @@ router.get('/', auth, async (req, res) => {
     }
 });
 
-// Mark notification as read
 router.put('/:id/read', auth, async (req, res) => {
     try {
         const userId = req.user._id.toString();
@@ -95,7 +91,6 @@ router.put('/:id/read', auth, async (req, res) => {
     }
 });
 
-// Mark all notifications as read
 router.put('/read-all', auth, async (req, res) => {
     try {
         const userId = req.user._id.toString();
@@ -111,7 +106,6 @@ router.put('/read-all', auth, async (req, res) => {
     }
 });
 
-// Create notification (internal use)
 router.post('/', auth, async (req, res) => {
     try {
         const userId = req.user._id.toString();
@@ -131,7 +125,6 @@ router.post('/', auth, async (req, res) => {
         const userNotifications = notifications.get(userId) || [];
         userNotifications.unshift(notification);
         
-        // Keep only last 100 notifications
         if (userNotifications.length > 100) {
             userNotifications.splice(100);
         }
@@ -145,7 +138,6 @@ router.post('/', auth, async (req, res) => {
     }
 });
 
-// Delete notification
 router.delete('/:id', auth, async (req, res) => {
     try {
         const userId = req.user._id.toString();
@@ -168,10 +160,8 @@ router.delete('/:id', auth, async (req, res) => {
     }
 });
 
-// Get notification settings
 router.get('/settings', auth, async (req, res) => {
     try {
-        // Mock settings - in production, store in database
         const settings = {
             emailNotifications: true,
             pushNotifications: true,
@@ -188,13 +178,9 @@ router.get('/settings', auth, async (req, res) => {
     }
 });
 
-// Update notification settings
 router.put('/settings', auth, async (req, res) => {
     try {
         const settings = req.body;
-        
-        // In production, save to database
-        // For now, just return the updated settings
         
         res.json({
             message: 'Notification settings updated',
