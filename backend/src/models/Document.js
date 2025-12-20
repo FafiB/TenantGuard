@@ -18,9 +18,9 @@ const documentSchema = new mongoose.Schema({
     originalName: String,
     fileType: String,
     fileSize: Number,
-    // ❌ VULNERABILITY: File path exposed in database
+    //  VULNERABILITY: File path exposed in database
     filePath: String,
-    // ❌ VULNERABILITY: Access control as simple string
+    // VULNERABILITY: Access control as simple string
     visibility: {
         type: String,
         enum: ['private', 'shared', 'public'],
@@ -30,14 +30,14 @@ const documentSchema = new mongoose.Schema({
         userId: mongoose.Schema.Types.ObjectId,
         permission: String // 'view' or 'edit'
     }],
-    // ❌ VULNERABILITY: Comments stored with document (NoSQL injection possible)
+    // VULNERABILITY: Comments stored with document (NoSQL injection possible)
     comments: [{
         userId: mongoose.Schema.Types.ObjectId,
         text: String,
         createdAt: Date
     }],
     metadata: {
-        // ❌ VULNERABILITY: User-controlled metadata stored without validation
+        // VULNERABILITY: User-controlled metadata stored without validation
         type: mongoose.Schema.Types.Mixed,
         default: {}
     }
