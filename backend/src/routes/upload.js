@@ -6,7 +6,7 @@ const auth = require('../middleware/auth');
 const Document = require('../models/Document');
 const router = express.Router();
 
-// ❌ INSECURE FILE UPLOAD - No file type validation
+//INSECURE FILE UPLOAD - No file type validation
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const uploadPath = path.join(__dirname, '../../uploads');
@@ -16,17 +16,17 @@ const storage = multer.diskStorage({
     cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    // ❌ VULNERABILITY: Allows any file extension
+    // VULNERABILITY: Allows any file extension
     const filename = `${Date.now()}-${file.originalname}`;
     cb(null, filename);
   }
 });
 
-// ❌ VULNERABILITY: No file filtering - accepts ALL file types
+// VULNERABILITY: No file filtering - accepts ALL file types
 const upload = multer({ 
   storage: storage,
   limits: {
-    fileSize: 100 * 1024 * 1024 // 100MB limit
+    fileSize: 100 * 1024 * 1024 
   }
   // No fileFilter - allows executables, scripts, etc.
 });
@@ -38,9 +38,9 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // ❌ VULNERABILITY: No file type validation
-    // ❌ VULNERABILITY: No virus scanning
-    // ❌ VULNERABILITY: Files stored in web-accessible directory
+    // VULNERABILITY: No file type validation
+    // VULNERABILITY: No virus scanning
+    //VULNERABILITY: Files stored in web-accessible directory
 
     const document = new Document({
       title: req.file.originalname,
@@ -72,5 +72,4 @@ router.post('/upload', auth, upload.single('file'), async (req, res) => {
     res.status(500).json({ error: 'Upload failed' });
   }
 });
-
 module.exports = router;
