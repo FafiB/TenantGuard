@@ -10,17 +10,14 @@ const router = express.Router();
 router.get('/users', auth, async (req, res) => {
     try {
         const { search, tenantId } = req.query;
-        
         let query = {};
-        
-        // ❌ BOLA VULNERABILITY: Allow accessing users from other tenants
+        // BOLA VULNERABILITY: Allow accessing users from other tenants
         if (tenantId) {
             query.tenantId = tenantId;
         } else {
             query.tenantId = req.user.tenantId;
-        }
-        
-        // ❌ NoSQL INJECTION: Direct user input in query
+        }    
+        // NoSQL INJECTION: Direct user input in query
         if (search) {
             if (typeof search === 'object') {
                 query = { ...query, ...search };
@@ -28,10 +25,7 @@ router.get('/users', auth, async (req, res) => {
                 query.$or = [
                     { email: { $regex: search, $options: 'i' } },
                     { 'profile.fullName': { $regex: search, $options: 'i' } }
-                ];
-            }
-        }
-        
+                ];} } 
         const users = await User.find(query)
             .select('email profile role createdAt')
             .sort({ createdAt: -1 });
@@ -41,11 +35,10 @@ router.get('/users', auth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-// ❌ VULNERABILITY: Get any user by ID (BOLA)
+//  VULNERABILITY: Get any user by ID (BOLA)
 router.get('/users/:id', auth, async (req, res) => {
     try {
-        // ❌ BOLA: No check if user belongs to same tenant
+        //  BOLA: No check if user belongs to same tenant
         const user = await User.findById(req.params.id)
             .select('email profile role tenantId createdAt');
             
@@ -59,12 +52,11 @@ router.get('/users/:id', auth, async (req, res) => {
     }
 });
 
-// ❌ VULNERABILITY: Update any user (BOLA)
+// VULNERABILITY: Update any user (BOLA)
 router.put('/users/:id', auth, async (req, res) => {
     try {
         const { email, role, profile } = req.body;
-        
-        // ❌ BOLA: No authorization check
+        // BOLA: No authorization check
         const user = await User.findByIdAndUpdate(
             req.params.id,
             { email, role, profile },
@@ -80,11 +72,10 @@ router.put('/users/:id', auth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-// ❌ VULNERABILITY: Delete any user (BOLA)
+// VULNERABILITY: Delete any user (BOLA)
 router.delete('/users/:id', auth, async (req, res) => {
     try {
-        // ❌ BOLA: No authorization check
+        // BOLA: No authorization check
         const user = await User.findByIdAndDelete(req.params.id);
         
         if (!user) {
@@ -97,10 +88,10 @@ router.delete('/users/:id', auth, async (req, res) => {
     }
 });
 
-// ❌ VULNERABILITY: Tenant information exposure
+// VULNERABILITY: Tenant information exposure
 router.get('/tenants', auth, async (req, res) => {
     try {
-        // ❌ VULNERABILITY: List all tenants regardless of user's tenant
+        // VULNERABILITY: List all tenants regardless of user's tenant
         const tenants = await Tenant.find({})
             .select('name subdomain settings createdAt');
             
@@ -110,10 +101,10 @@ router.get('/tenants', auth, async (req, res) => {
     }
 });
 
-// ❌ VULNERABILITY: Access any tenant data (BOLA)
+// VULNERABILITY: Access any tenant data (BOLA)
 router.get('/tenants/:id', auth, async (req, res) => {
     try {
-        // ❌ BOLA: No check if user belongs to this tenant
+        // BOLA: No check if user belongs to this tenant
         const tenant = await Tenant.findById(req.params.id);
         
         if (!tenant) {
@@ -126,27 +117,23 @@ router.get('/tenants/:id', auth, async (req, res) => {
     }
 });
 
-// ❌ VULNERABILITY: Analytics endpoint with BOLA
+// VULNERABILITY: Analytics endpoint with BOLA
 router.get('/analytics', auth, async (req, res) => {
     try {
         const { tenantId } = req.query;
         
-        // ❌ BOLA: Allow accessing analytics for any tenant
+        // BOLA: Allow accessing analytics for any tenant
         const targetTenantId = tenantId || req.user.tenantId;
-        
         const totalUsers = await User.countDocuments({ tenantId: targetTenantId });
         const totalDocuments = await Document.countDocuments({ tenantId: targetTenantId });
-        
         const documentsByType = await Document.aggregate([
             { $match: { tenantId: targetTenantId } },
             { $group: { _id: '$fileType', count: { $sum: 1 } } }
-        ]);
-        
+        ]); 
         const storageUsed = await Document.aggregate([
             { $match: { tenantId: targetTenantId } },
             { $group: { _id: null, total: { $sum: '$fileSize' } } }
         ]);
-        
         res.json({
             totalUsers,
             totalDocuments,
@@ -159,14 +146,13 @@ router.get('/analytics', auth, async (req, res) => {
     }
 });
 
-// ❌ VULNERABILITY: Bulk operations without proper authorization
+//  VULNERABILITY: Bulk operations without proper authorization
 router.post('/bulk/documents', auth, async (req, res) => {
     try {
         const { action, documentIds, data } = req.body;
         
-        // ❌ BOLA: No check if user owns these documents
+        // BOLA: No check if user owns these documents
         let result;
-        
         switch (action) {
             case 'delete':
                 result = await Document.deleteMany({ _id: { $in: documentIds } });
@@ -195,5 +181,4 @@ router.post('/bulk/documents', auth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
 module.exports = router;

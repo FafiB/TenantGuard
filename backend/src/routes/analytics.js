@@ -4,14 +4,10 @@ const Document = require('../models/Document');
 const SharedLink = require('../models/SharedLink');
 const User = require('../models/User');
 const router = express.Router();
-
-// Dashboard analytics
 router.get('/dashboard', auth, async (req, res) => {
     try {
         const userId = req.user._id;
         const tenantId = req.user.tenantId;
-        
-        // Get document stats
         const documentStats = await Document.aggregate([
             { $match: { userId } },
             {
@@ -20,11 +16,7 @@ router.get('/dashboard', auth, async (req, res) => {
                     totalDocuments: { $sum: 1 },
                     totalSize: { $sum: '$fileSize' },
                     avgSize: { $avg: '$fileSize' }
-                }
-            }
-        ]);
-        
-        // Get sharing stats
+                }}]);
         const shareStats = await SharedLink.aggregate([
             { $match: { createdBy: userId } },
             {
@@ -35,14 +27,10 @@ router.get('/dashboard', auth, async (req, res) => {
                 }
             }
         ]);
-        
-        // Get recent activity
         const recentDocs = await Document.find({ userId })
             .sort({ createdAt: -1 })
             .limit(5)
             .select('title createdAt fileType fileSize');
-            
-        // Document type breakdown
         const typeBreakdown = await Document.aggregate([
             { $match: { userId } },
             {
@@ -87,13 +75,9 @@ router.get('/dashboard', auth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-// Storage analytics
 router.get('/storage', auth, async (req, res) => {
     try {
         const userId = req.user._id;
-        
-        // Monthly storage usage
         const monthlyUsage = await Document.aggregate([
             { $match: { userId } },
             {
@@ -109,8 +93,6 @@ router.get('/storage', auth, async (req, res) => {
             { $sort: { '_id.year': 1, '_id.month': 1 } },
             { $limit: 12 }
         ]);
-        
-        // Storage by file type
         const storageByType = await Document.aggregate([
             { $match: { userId } },
             {
@@ -135,7 +117,7 @@ router.get('/storage', auth, async (req, res) => {
                 size: item.totalSize,
                 formattedSize: `${(item.totalSize / 1024 / 1024).toFixed(2)} MB`,
                 count: item.count,
-                percentage: 0 // Will be calculated on frontend
+                percentage: 0
             }))
         });
         
@@ -143,21 +125,15 @@ router.get('/storage', auth, async (req, res) => {
         res.status(500).json({ error: error.message });
     }
 });
-
-// Activity feed
 router.get('/activity', auth, async (req, res) => {
     try {
         const userId = req.user._id;
         const { limit = 20, page = 1 } = req.query;
-        
-        // Get recent documents
         const recentDocs = await Document.find({ userId })
             .sort({ createdAt: -1 })
             .limit(parseInt(limit))
             .skip((page - 1) * limit)
             .select('title createdAt fileType updatedAt');
-            
-        // Get recent shares
         const recentShares = await SharedLink.find({ createdBy: userId })
             .populate('documentId', 'title')
             .sort({ createdAt: -1 })
@@ -165,8 +141,6 @@ router.get('/activity', auth, async (req, res) => {
             .select('documentId createdAt usedCount');
         
         const activities = [];
-        
-        // Add document activities
         recentDocs.forEach(doc => {
             activities.push({
                 id: doc._id,
@@ -185,11 +159,7 @@ router.get('/activity', auth, async (req, res) => {
                     timestamp: doc.updatedAt,
                     icon: '✏️',
                     color: 'green'
-                });
-            }
-        });
-        
-        // Add sharing activities
+                });}});
         recentShares.forEach(share => {
             activities.push({
                 id: share._id,
@@ -201,10 +171,7 @@ router.get('/activity', auth, async (req, res) => {
                 metadata: { views: share.usedCount }
             });
         });
-        
-        // Sort by timestamp
         activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
         res.json({
             activities: activities.slice(0, parseInt(limit)),
             total: activities.length,
