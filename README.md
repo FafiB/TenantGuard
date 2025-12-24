@@ -3,7 +3,7 @@
 **Author:** Fasika Belayneh  
 **Version:** 1.0.0  
 **Purpose:** Security Research & Penetration Testing
-**Watch Video:**https://youtu.be/2Qjl0HFf0Fw
+**Watch Video:** [https://youtu.be/DeUxVrDd13k]
 ## Overview
 
 TenantGuard is an intentionally vulnerable enterprise document management platform designed for security research and penetration testing. It features a multi-tenant architecture with role-based access control, file management capabilities, and payment processing - all implemented with deliberate security vulnerabilities for educational purposes.
